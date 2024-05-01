@@ -1,10 +1,6 @@
-provider "aws" {
-  region = "us-east-1"
-}
-
 # TLS
 resource "aws_acm_certificate" "example" {
-  domain_name = "doa.pp.ua"
+  domain_name       = var.domain_name
   validation_method = "DNS"
 
   tags = {
@@ -12,9 +8,9 @@ resource "aws_acm_certificate" "example" {
   }
 }
 
-# s3
+# S3
 resource "aws_s3_bucket" "website" {
-  bucket = "aboba123-32"
+  bucket = var.bucket_name
 }
 
 resource "aws_s3_bucket_public_access_block" "example" {
@@ -57,17 +53,16 @@ resource "aws_s3_bucket_policy" "website_policy" {
 
 resource "aws_s3_object" "index" {
   bucket = aws_s3_bucket.website.bucket
-  key = "index.html"
+  key    = "index.html"
   content = "<html><head><title>My Website</title></head><body><h1>Welcome to My Website!</h1></body></html>"
 
   content_type = "text/html"
 }
 
-
 # Cloudfront
 resource "aws_cloudfront_distribution" "website_distribution" {
   origin {
-    domain_name = aws_s3_bucket.website.bucket_regional_domain_name 
+    domain_name = aws_s3_bucket.website.bucket_regional_domain_name
     origin_id   = "S3-${aws_s3_bucket.website.id}"
   }
 
@@ -75,12 +70,10 @@ resource "aws_cloudfront_distribution" "website_distribution" {
   default_root_object = "index.html"
 
   default_cache_behavior {
-    target_origin_id = "S3-${aws_s3_bucket.website.id}"
-
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD", "OPTIONS"]
-
+    target_origin_id         = "S3-${aws_s3_bucket.website.id}"
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["GET", "HEAD", "OPTIONS"]
+    cached_methods           = ["GET", "HEAD", "OPTIONS"]
     forwarded_values {
       query_string = false
 
@@ -102,11 +95,11 @@ resource "aws_cloudfront_distribution" "website_distribution" {
     minimum_protocol_version = "TLSv1.2_2018"
   }
 
-  aliases = ["doa.pp.ua"]
+  aliases = [var.domain_name]
 }
 
 resource "aws_route53_record" "website_record" {
-  zone_id = "Z0338044DWIAFDMCXLYH"  # Замініть на ідентифікатор вашої зони в Route53
+  zone_id = var.route53_zone_id
   name    = element(aws_acm_certificate.example.domain_validation_options[*].resource_record_name, 0)
   type    = "CNAME"
   ttl     = "300"
@@ -114,8 +107,8 @@ resource "aws_route53_record" "website_record" {
 }
 
 resource "aws_route53_record" "example" {
-  zone_id = "Z0338044DWIAFDMCXLYH"
-  name    = "doa.pp.ua"
+  zone_id = var.route53_zone_id
+  name    = var.domain_name
   type    = "A"
 
   alias {
